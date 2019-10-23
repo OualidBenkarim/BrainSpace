@@ -182,9 +182,16 @@ classdef GradientMaps
                 return
             end
             
-            sparse_data = data .* bsxfun(@gt, data, prctile(data,p.Results.sparsity));
+            % Sparsify input data. 
+            disp(['Running with sparsity parameter: ' num2str(p.Results.sparsity)]);
+            sparse_data = data;
+            sparse_data(data <= prctile(data,p.Results.sparsity)) = 0; 
+            
             switch kernel
                 case 'None'
+                    if p.Results.sparsity ~= 0
+                        warning('Using a none kernel with a matrix sparsification will likely lead to an asymmetric matrix. Consider setting the sparsity parameter to 0.');
+                    end
                     kernel_data = sparse_data;
                 case {'Pearson','Spearman'}
                     kernel_data = corr(sparse_data,'type',kernel);
@@ -192,7 +199,6 @@ classdef GradientMaps
                     disp(['Running with gamma parameter: ' num2str(p.Results.gamma) '.']);
                     kernel_data = exp(-p.Results.gamma .* squareform(pdist(sparse_data').^2));
                 case {'Cosine Similarity','Normalized Angle'}
-                    disp(['Running with sparsity parameter: ' num2str(p.Results.sparsity)]);
                     cosine_similarity = 1-squareform(pdist(sparse_data','cosine'));
                     switch kernel
                         case 'Cosine Similarity'
@@ -221,7 +227,7 @@ classdef GradientMaps
                 if max(max(abs(kernel_data - kernel_data'))) < p.Results.tolerance
                     kernel_data = tril(kernel_data) + tril(kernel_data,-1)';
                 else
-                    error('Asymmetry in the affinity matrix is too large. Increase the tolerance. If this does not help, then please report this as a bug.');
+                    error('Asymmetry in the affinity matrix is too large. Increase the tolerance. Alternatively, are you using a ''none'' kernel with a non-zero sparsity parameter? This may result in errors.');
                 end
             end
         end
